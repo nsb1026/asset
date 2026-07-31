@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  # 기존 리눅스 호스트 MariaDB(localhost:3306)에 직접 연동하는 Nuxt 3 앱
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asset_web_app
+    restart: always
+    network_mode: "host" # 호스트 리눅스의 네트워크(localhost:3306 MariaDB)를 직접 공유
+    environment:
+      DB_HOST: '172.17.0.1'
+      DB_PORT: '3306'
+      DB_USER: 'sms'
+      DB_PASSWORD: 'sms'
+      DB_NAME: 'sms'
