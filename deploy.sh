@@ -11,6 +11,9 @@ set -e
 
 REPO_URL="https://github.com/nsb1026/asset.git"
 
+# 도커 설정 권한 오류 자동 복구
+sudo chown -R $USER:$USER ~/.docker 2>/dev/null || true
+
 echo "=================================================================="
 echo "🚀 [1/3] https://github.com/nsb1026/asset.git 최신 소스 수신 중..."
 echo "=================================================================="

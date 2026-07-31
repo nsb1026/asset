@@ -13,6 +13,9 @@ set -e
 REPO_URL="https://github.com/nsb1026/asset.git"
 TARGET_DIR="assetManage"
 
+# 도커 설정 권한 오류 자동 복구
+sudo chown -R $USER:$USER ~/.docker 2>/dev/null || true
+
 echo "=================================================================="
 echo "📦 [1/4] 리눅스 서버 필수 도구 (Git, Docker) 설치 상태 점검 중..."
 echo "=================================================================="
@@ -29,6 +32,7 @@ if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     sudo usermod -aG docker $USER || true
+    sudo chown -R $USER:$USER ~/.docker 2>/dev/null || true
 fi
 
 # Docker Compose 플러그인 확인
