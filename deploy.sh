@@ -3,28 +3,29 @@
 # ====================================================================
 # https://github.com/nsb1026/asset.git 최신 소스 자동 빌드 & 배포 스크립트
 # ====================================================================
-# 1. GitHub 원격 저장소(https://github.com/nsb1026/asset.git) 최신 소스 수신
-# 2. Docker Compose 무중단 자동 재빌드 및 웹 서비스 구동
-# 3. 불필요한 구버전 이미지 자동 정돈
+# - 현 폴더에 .git이 없더라도 자동으로 git init 및 remote 연결 후 수신
+# - Docker Compose 무중단 자동 재빌드 및 웹 서비스 구동
+# - 불필요한 구버전 이미지 자동 정돈
 
 set -e
 
 REPO_URL="https://github.com/nsb1026/asset.git"
-APP_DIR="/var/www/assetManage"
 
 echo "=================================================================="
 echo "🚀 [1/3] https://github.com/nsb1026/asset.git 최신 소스 수신 중..."
 echo "=================================================================="
 
-# 저장소 폴더가 없으면 git clone 실행, 존재하면 git pull 실행
+# .git 폴더가 없는 경우 즉시 git init 및 remote 동기화
 if [ ! -d ".git" ]; then
-    echo "💡 현 위치에 Git 저장소가 없습니다. 최신 코드를 Clone 합니다..."
-    git clone $REPO_URL .
-else
-    echo "💡 Git 저장소가 존재합니다. 최신 변경 사항을 Pull 합니다..."
-    git fetch origin main
-    git reset --hard origin/main
+    echo "💡 Git 저장소가 설정되어 있지 않습니다. 자동 초기화 중..."
+    git init
+    git remote add origin $REPO_URL || git remote set-url origin $REPO_URL
 fi
+
+# 원격 저장소 최신 커밋 수신 및 동기화
+echo "💡 GitHub 최신 소스로 강력 동기화(Reset) 중..."
+git fetch origin main
+git reset --hard origin/main
 
 echo ""
 echo "=================================================================="

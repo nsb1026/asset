@@ -5,10 +5,13 @@
 # ====================================================================
 # GitHub 주소: https://github.com/nsb1026/asset.git
 # - Git, Docker, Docker Compose 자동 설치
-# - https://github.com/nsb1026/asset.git 자동 클론
+# - https://github.com/nsb1026/asset.git 자동 클론 및 동기화
 # - 도커 기반 빌드 및 즉시 무중단 배포
 
 set -e
+
+REPO_URL="https://github.com/nsb1026/asset.git"
+TARGET_DIR="assetManage"
 
 echo "=================================================================="
 echo "📦 [1/4] 리눅스 서버 필수 도구 (Git, Docker) 설치 상태 점검 중..."
@@ -36,20 +39,22 @@ fi
 
 echo ""
 echo "=================================================================="
-echo "📥 [2/4] https://github.com/nsb1026/asset.git 소스 코드 Clone 중..."
+echo "📥 [2/4] https://github.com/nsb1026/asset.git 소스 코드 수신 중..."
 echo "=================================================================="
 
-TARGET_DIR="assetManage"
-
-if [ -d "$TARGET_DIR" ]; then
-    echo "💡 '$TARGET_DIR' 폴더가 이미 존재합니다. 해당 폴더로 이동합니다."
-    cd "$TARGET_DIR"
-    git fetch origin main
-    git reset --hard origin/main
-else
-    git clone https://github.com/nsb1026/asset.git "$TARGET_DIR"
-    cd "$TARGET_DIR"
+if [ ! -d "$TARGET_DIR" ]; then
+    mkdir -p "$TARGET_DIR"
 fi
+
+cd "$TARGET_DIR"
+
+if [ ! -d ".git" ]; then
+    git init
+    git remote add origin $REPO_URL || git remote set-url origin $REPO_URL
+fi
+
+git fetch origin main
+git reset --hard origin/main
 
 chmod +x deploy.sh
 
