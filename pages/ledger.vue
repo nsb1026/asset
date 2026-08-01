@@ -103,6 +103,7 @@
                 <th class="py-3 px-4">예적금</th>
                 <th class="py-3 px-4">펀드</th>
                 <th class="py-3 px-4">부동산</th>
+                <th class="py-3 px-4 text-center">세부 내역</th>
                 <th class="py-3 px-4">비고</th>
                 <th class="py-3 px-4 text-right">삭제</th>
               </tr>
@@ -116,6 +117,15 @@
                 <td class="py-3 px-4 font-mono text-slate-300">₩ {{ formatNumber(h.savings_amount) }}</td>
                 <td class="py-3 px-4 font-mono text-slate-300">₩ {{ formatNumber(h.fund_valuation) }}</td>
                 <td class="py-3 px-4 font-mono text-slate-300">₩ {{ formatNumber(h.real_estate_amount) }}</td>
+                <td class="py-3 px-4 text-center">
+                  <button
+                    @click="openDetailModal(h)"
+                    class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 text-xs font-medium border border-indigo-500/30 transition-colors"
+                  >
+                    <Search class="w-3.5 h-3.5" />
+                    <span>상세보기</span>
+                  </button>
+                </td>
                 <td class="py-3 px-4 text-xs text-slate-400">{{ h.note || '-' }}</td>
                 <td class="py-3 px-4 text-right">
                   <button @click="deleteHistory(h.id)" class="p-1 text-slate-400 hover:text-rose-400">
@@ -436,6 +446,268 @@
         </form>
       </div>
     </div>
+
+    <!-- 팝업 3: 자산 스냅샷 세부 내역 (통장, 주식 등) 상세보기 모달 -->
+    <div v-if="showSnapshotDetailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <div class="glass-card w-full max-w-4xl max-h-[90vh] flex flex-col p-6 bg-slate-900 border border-slate-700 shadow-2xl relative overflow-hidden">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div>
+            <div class="flex items-center space-x-2">
+              <Camera class="w-5 h-5 text-indigo-400" />
+              <h3 class="text-xl font-bold text-white">자산 스냅샷 세부 내역</h3>
+              <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-mono font-bold">
+                {{ formatDate(selectedSnapshot?.record_date) }}
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              스냅샷 저장 시점에 기록된 전체 통장, 보유 주식, 예적금, 펀드, 부동산 상세 데이터입니다.
+            </p>
+          </div>
+          <button @click="showSnapshotDetailModal = false" class="text-slate-400 hover:text-white">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <div v-if="selectedSnapshot" class="flex-1 overflow-y-auto py-4 space-y-6">
+          <!-- 총 자산 및 카테고리 요약 바 -->
+          <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">총 평가 자산</div>
+              <div class="text-sm font-extrabold text-indigo-300">₩ {{ formatNumber(selectedSnapshot.total_asset) }}</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">은행 통장</div>
+              <div class="text-xs font-bold text-cyan-300">₩ {{ formatNumber(selectedSnapshot.bank_balance) }}</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">주식 평가금</div>
+              <div class="text-xs font-bold text-emerald-300">₩ {{ formatNumber(selectedSnapshot.stock_valuation) }}</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">예/적금</div>
+              <div class="text-xs font-bold text-purple-300">₩ {{ formatNumber(selectedSnapshot.savings_amount) }}</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">펀드</div>
+              <div class="text-xs font-bold text-amber-300">₩ {{ formatNumber(selectedSnapshot.fund_valuation) }}</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-semibold">부동산</div>
+              <div class="text-xs font-bold text-teal-300">₩ {{ formatNumber(selectedSnapshot.real_estate_amount) }}</div>
+            </div>
+          </div>
+
+          <div v-if="!selectedSnapshot.snapshot_details" class="text-center py-12 text-slate-500 text-sm">
+            💡 해당 스냅샷 저장 시에는 세부 항목 정보가 저장되지 않았습니다. (금액만 기록됨)
+          </div>
+
+          <div v-else class="space-y-6">
+            <!-- 탭 전환 -->
+            <div class="flex border-b border-slate-800 space-x-1 text-xs font-semibold">
+              <button
+                @click="snapshotDetailTab = 'ACCOUNTS'"
+                class="pb-2 px-3 border-b-2 transition-all flex items-center space-x-1.5"
+                :class="snapshotDetailTab === 'ACCOUNTS' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+              >
+                <Building2 class="w-3.5 h-3.5" />
+                <span>은행 통장 ({{ (selectedSnapshot.snapshot_details.accounts || []).length }}개)</span>
+              </button>
+
+              <button
+                @click="snapshotDetailTab = 'STOCKS'"
+                class="pb-2 px-3 border-b-2 transition-all flex items-center space-x-1.5"
+                :class="snapshotDetailTab === 'STOCKS' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+              >
+                <TrendingUp class="w-3.5 h-3.5" />
+                <span>보유 주식 ({{ (selectedSnapshot.snapshot_details.stocks || []).length }}종목)</span>
+              </button>
+
+              <button
+                @click="snapshotDetailTab = 'SAVINGS'"
+                class="pb-2 px-3 border-b-2 transition-all flex items-center space-x-1.5"
+                :class="snapshotDetailTab === 'SAVINGS' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+              >
+                <PiggyBank class="w-3.5 h-3.5" />
+                <span>예/적금 ({{ (selectedSnapshot.snapshot_details.savings || []).length }}개)</span>
+              </button>
+
+              <button
+                @click="snapshotDetailTab = 'FUNDS'"
+                class="pb-2 px-3 border-b-2 transition-all flex items-center space-x-1.5"
+                :class="snapshotDetailTab === 'FUNDS' ? 'border-amber-500 text-amber-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+              >
+                <Coins class="w-3.5 h-3.5" />
+                <span>펀드 ({{ (selectedSnapshot.snapshot_details.funds || []).length }}개)</span>
+              </button>
+
+              <button
+                @click="snapshotDetailTab = 'REAL_ESTATES'"
+                class="pb-2 px-3 border-b-2 transition-all flex items-center space-x-1.5"
+                :class="snapshotDetailTab === 'REAL_ESTATES' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+              >
+                <Home class="w-3.5 h-3.5" />
+                <span>부동산 ({{ (selectedSnapshot.snapshot_details.real_estates || []).length }}개)</span>
+              </button>
+            </div>
+
+            <!-- 1. 통장 내역 -->
+            <div v-if="snapshotDetailTab === 'ACCOUNTS'">
+              <div v-if="!(selectedSnapshot.snapshot_details.accounts?.length)" class="text-xs text-slate-500 py-4 text-center">기록된 통장이 없습니다.</div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">은행명</th>
+                      <th class="py-2.5 px-3">계좌명</th>
+                      <th class="py-2.5 px-3">계좌번호</th>
+                      <th class="py-2.5 px-3 text-right">잔액</th>
+                      <th class="py-2.5 px-3">비고</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/50">
+                    <tr v-for="(acc, i) in selectedSnapshot.snapshot_details.accounts" :key="i" class="hover:bg-slate-950/40">
+                      <td class="py-2.5 px-3 font-semibold text-white">{{ acc.bank_name }}</td>
+                      <td class="py-2.5 px-3 text-slate-200">{{ acc.account_name }}</td>
+                      <td class="py-2.5 px-3 font-mono text-slate-400">{{ acc.account_number || '-' }}</td>
+                      <td class="py-2.5 px-3 font-mono font-bold text-cyan-300 text-right">₩ {{ formatNumber(acc.balance) }}</td>
+                      <td class="py-2.5 px-3 text-slate-400">{{ acc.note || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 2. 주식 내역 -->
+            <div v-if="snapshotDetailTab === 'STOCKS'">
+              <div v-if="!(selectedSnapshot.snapshot_details.stocks?.length)" class="text-xs text-slate-500 py-4 text-center">기록된 주식이 없습니다.</div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">종목명 (코드)</th>
+                      <th class="py-2.5 px-3">구분</th>
+                      <th class="py-2.5 px-3 text-right">수량</th>
+                      <th class="py-2.5 px-3 text-right">평균 매수가</th>
+                      <th class="py-2.5 px-3 text-right">현재가</th>
+                      <th class="py-2.5 px-3 text-right">평가금액</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/50">
+                    <tr v-for="(s, i) in selectedSnapshot.snapshot_details.stocks" :key="i" class="hover:bg-slate-950/40">
+                      <td class="py-2.5 px-3 font-semibold text-white">
+                        {{ s.stock_name }} <span class="text-slate-400 font-mono text-[11px]">({{ s.stock_code }})</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-slate-300">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 font-medium">
+                          {{ s.market_type === 'OVERSEAS' ? '해외' : '국내' }}
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-3 font-mono text-right text-slate-200">{{ formatNumber(s.quantity) }}주</td>
+                      <td class="py-2.5 px-3 font-mono text-right text-slate-400">₩ {{ formatNumber(s.avg_buy_price) }}</td>
+                      <td class="py-2.5 px-3 font-mono text-right text-slate-200">₩ {{ formatNumber(s.current_price) }}</td>
+                      <td class="py-2.5 px-3 font-mono font-bold text-emerald-300 text-right">
+                        ₩ {{ formatNumber(s.quantity * (s.current_price || s.avg_buy_price)) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 3. 예적금 내역 -->
+            <div v-if="snapshotDetailTab === 'SAVINGS'">
+              <div v-if="!(selectedSnapshot.snapshot_details.savings?.length)" class="text-xs text-slate-500 py-4 text-center">기록된 예/적금이 없습니다.</div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">은행명</th>
+                      <th class="py-2.5 px-3">상품명</th>
+                      <th class="py-2.5 px-3">종류</th>
+                      <th class="py-2.5 px-3 text-right">납입/원금</th>
+                      <th class="py-2.5 px-3 text-right">금리</th>
+                      <th class="py-2.5 px-3 text-right">예상 만기액</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/50">
+                    <tr v-for="(sav, i) in selectedSnapshot.snapshot_details.savings" :key="i" class="hover:bg-slate-950/40">
+                      <td class="py-2.5 px-3 font-semibold text-white">{{ sav.bank_name }}</td>
+                      <td class="py-2.5 px-3 text-slate-200">{{ sav.product_name }}</td>
+                      <td class="py-2.5 px-3 text-slate-300">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 font-medium">
+                          {{ sav.savings_type === 'SAVINGS' ? '적금' : '예금' }}
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-3 font-mono text-right text-slate-300">₩ {{ formatNumber(sav.principal) }}</td>
+                      <td class="py-2.5 px-3 font-mono text-right text-purple-300 font-semibold">{{ sav.interest_rate }}%</td>
+                      <td class="py-2.5 px-3 font-mono font-bold text-purple-300 text-right">
+                        ₩ {{ formatNumber(sav.maturity_amount || sav.principal) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 4. 펀드 내역 -->
+            <div v-if="snapshotDetailTab === 'FUNDS'">
+              <div v-if="!(selectedSnapshot.snapshot_details.funds?.length)" class="text-xs text-slate-500 py-4 text-center">기록된 펀드가 없습니다.</div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">펀드명</th>
+                      <th class="py-2.5 px-3">유형</th>
+                      <th class="py-2.5 px-3 text-right">투자 원금</th>
+                      <th class="py-2.5 px-3 text-right">평가 금액</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/50">
+                    <tr v-for="(f, i) in selectedSnapshot.snapshot_details.funds" :key="i" class="hover:bg-slate-950/40">
+                      <td class="py-2.5 px-3 font-semibold text-white">{{ f.fund_name }}</td>
+                      <td class="py-2.5 px-3 text-slate-300">{{ f.fund_type || '주식형' }}</td>
+                      <td class="py-2.5 px-3 font-mono text-right text-slate-400">₩ {{ formatNumber(f.investment_amount) }}</td>
+                      <td class="py-2.5 px-3 font-mono font-bold text-amber-300 text-right">₩ {{ formatNumber(f.current_valuation || f.investment_amount) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 5. 부동산 내역 -->
+            <div v-if="snapshotDetailTab === 'REAL_ESTATES'">
+              <div v-if="!(selectedSnapshot.snapshot_details.real_estates?.length)" class="text-xs text-slate-500 py-4 text-center">기록된 부동산이 없습니다.</div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">자산명</th>
+                      <th class="py-2.5 px-3">유형</th>
+                      <th class="py-2.5 px-3">소재지</th>
+                      <th class="py-2.5 px-3 text-right">취득 금액</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/50">
+                    <tr v-for="(re, i) in selectedSnapshot.snapshot_details.real_estates" :key="i" class="hover:bg-slate-950/40">
+                      <td class="py-2.5 px-3 font-semibold text-white">{{ re.property_name }}</td>
+                      <td class="py-2.5 px-3 text-slate-300">{{ re.property_type }}</td>
+                      <td class="py-2.5 px-3 text-slate-400">{{ re.location || '-' }}</td>
+                      <td class="py-2.5 px-3 font-mono font-bold text-teal-300 text-right">₩ {{ formatNumber(re.acquisition_price) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end pt-4 border-t border-slate-800">
+          <button @click="showSnapshotDetailModal = false" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold">
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -447,7 +719,7 @@
  * - 일별 가계부 수동 내역 작성 및 CRUD
  */
 import { ref, computed, onMounted } from 'vue'
-import { TrendingUp, BarChart3, Receipt, Camera, Plus, Calendar, PieChart, Pencil, Trash2, X } from 'lucide-vue-next'
+import { TrendingUp, BarChart3, Receipt, Camera, Plus, Calendar, PieChart, Pencil, Trash2, X, Search, Building2, Coins, Home, PiggyBank } from 'lucide-vue-next'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -486,6 +758,17 @@ const dashboardAssetTotal = ref(0)
 
 const filterYear = ref('')
 const filterMonth = ref('')
+
+// 스냅샷 상세보기 모달 조작 변수
+const showSnapshotDetailModal = ref(false)
+const selectedSnapshot = ref(null)
+const snapshotDetailTab = ref('ACCOUNTS')
+
+const openDetailModal = (snapshot) => {
+  selectedSnapshot.value = snapshot
+  snapshotDetailTab.value = 'ACCOUNTS'
+  showSnapshotDetailModal.value = true
+}
 
 // 모달 조작 변수
 const showSnapshotModal = ref(false)

@@ -171,11 +171,19 @@ export async function initDatabase() {
       fund_valuation DECIMAL(15, 2) DEFAULT 0,
       real_estate_amount DECIMAL(15, 2) DEFAULT 0,
       note VARCHAR(255) DEFAULT '',
+      snapshot_details LONGTEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uk_record_date (record_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `)
+
+  // 마이그레이션: 기존 테이블이 있는 경우 snapshot_details 컬럼 추가
+  try {
+    await dbPool.query('ALTER TABLE asset_history ADD COLUMN snapshot_details LONGTEXT')
+  } catch (e) {
+    // 컬럼이 이미 존재할 경우 예외 무시
+  }
 
   // 2-7. 일별 수동 가계부 항목 테이블 (ledger_entries)
   await dbPool.query(`
@@ -254,16 +262,41 @@ export async function initDatabase() {
 
   const [histCount]: any = await dbPool.query('SELECT COUNT(*) as count FROM asset_history')
   if (histCount[0].count === 0) {
+    const sampleDetails = JSON.stringify({
+      accounts: [
+        { bank_name: 'KB국민은행', account_name: '주거래 입출금 통장', account_number: '123-45-67890', balance: 5250000, note: '월급 수령 및 카드 결제 계좌' },
+        { bank_name: '신한은행', account_name: '비상금 통장', account_number: '110-234-56789', balance: 3100000, note: '예비 파킹 통장' },
+        { bank_name: '토스뱅크', account_name: '모임 통장', account_number: '1000-1234-5678', balance: 850000, note: '여행 계좌' }
+      ],
+      stocks: [
+        { stock_name: '삼성전자', stock_code: '005930', market_type: 'DOMESTIC', quantity: 100, avg_buy_price: 68000, current_price: 72500, note: '장기 투자 종목' },
+        { stock_name: 'SK하이닉스', stock_code: '000660', market_type: 'DOMESTIC', quantity: 20, avg_buy_price: 145000, current_price: 172000, note: '반도체 우량주' },
+        { stock_name: 'Apple Inc.', stock_code: 'AAPL', market_type: 'OVERSEAS', quantity: 15, avg_buy_price: 230000, current_price: 255000, note: '미국 빅테크 주식' }
+      ],
+      savings: [
+        { bank_name: '카카오뱅크', product_name: '26주 자유적금', savings_type: 'SAVINGS', principal: 500000, period_months: 12, interest_rate: 4.20, maturity_amount: 511370, note: '정기 적금' },
+        { bank_name: '우리은행', product_name: 'WON 플러스 예금', savings_type: 'DEPOSIT', principal: 10000000, period_months: 12, interest_rate: 3.80, maturity_amount: 10321480, note: '정기 예금' }
+      ],
+      funds: [
+        { fund_name: '미래에셋 글로벌인덱스 증권자투자신탁', fund_code: 'K55105B92534', fund_type: '주식형', investment_amount: 5000000, current_valuation: 5420000, note: '해외 인덱스 펀드' },
+        { fund_name: '신한 한국주식 밸류 증권펀드', fund_code: 'K55201A12345', fund_type: '혼합형', investment_amount: 3000000, current_valuation: 3180000, note: '국내 가치주 펀드' }
+      ],
+      real_estates: [
+        { property_name: '마포 아파트 84㎡', property_type: '아파트', location: '서울특별시 마포구 공덕동', acquisition_price: 850000000, note: '실거주 자가 아파트' },
+        { property_name: '강남 오피스텔', property_type: '오피스텔', location: '서울특별시 강남구 역삼동', acquisition_price: 230000000, note: '월세 임대용 자산' }
+      ]
+    })
+
     await dbPool.query(`
-      INSERT INTO asset_history (record_date, total_asset, bank_balance, stock_valuation, savings_amount, fund_valuation, real_estate_amount, note) VALUES
-      ('2026-01-31', 1050000000, 8000000, 12000000, 15000000, 8000000, 1007000000, '1월 자산 기록'),
-      ('2026-02-28', 1065000000, 8200000, 12800000, 15200000, 8100000, 1020700000, '2월 자산 기록'),
-      ('2026-03-31', 1082000000, 8500000, 13400000, 15500000, 8300000, 1036300000, '3월 자산 기록'),
-      ('2026-04-30', 1098000000, 8800000, 14000000, 15800000, 8400000, 1051000000, '4월 자산 기록'),
-      ('2026-05-31', 1115000000, 9000000, 14200000, 16000000, 8500000, 1067300000, '5월 자산 기록'),
-      ('2026-06-30', 1124000000, 9100000, 14400000, 16200000, 8550000, 1075750000, '6월 자산 기록'),
-      ('2026-07-31', 1131479918, 9200000, 14515000, 16436959, 8600000, 1080000000, '7월 현재 자산')
-    `)
+      INSERT INTO asset_history (record_date, total_asset, bank_balance, stock_valuation, savings_amount, fund_valuation, real_estate_amount, note, snapshot_details) VALUES
+      ('2026-01-31', 1050000000, 8000000, 12000000, 15000000, 8000000, 1007000000, '1월 자산 기록', ?),
+      ('2026-02-28', 1065000000, 8200000, 12800000, 15200000, 8100000, 1020700000, '2월 자산 기록', ?),
+      ('2026-03-31', 1082000000, 8500000, 13400000, 15500000, 8300000, 1036300000, '3월 자산 기록', ?),
+      ('2026-04-30', 1098000000, 8800000, 14000000, 15800000, 8400000, 1051000000, '4월 자산 기록', ?),
+      ('2026-05-31', 1115000000, 9000000, 14200000, 16000000, 8500000, 1067300000, '5월 자산 기록', ?),
+      ('2026-06-30', 1124000000, 9100000, 14400000, 16200000, 8550000, 1075750000, '6월 자산 기록', ?),
+      ('2026-07-31', 1131479918, 9200000, 14515000, 16436959, 8600000, 1080000000, '7월 현재 자산', ?)
+    `, [sampleDetails, sampleDetails, sampleDetails, sampleDetails, sampleDetails, sampleDetails, sampleDetails])
   }
 
   const [ledgerCount]: any = await dbPool.query('SELECT COUNT(*) as count FROM ledger_entries')
