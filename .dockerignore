@@ -5,3 +5,7 @@ node_modules
 .env
 .git
 .vscode
+.gitignore
+dist
+npm-debug.log
+Dockerfile
