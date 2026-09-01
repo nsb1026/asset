@@ -12,7 +12,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     dbHost: process.env.DB_HOST || '127.0.0.1',
-    dbPort: process.env.DB_PORT || '3305',
+    dbPort: process.env.DB_PORT || '3306',
     dbUser: process.env.DB_USER || 'sms',
     dbPassword: process.env.DB_PASSWORD || 'sms',
     dbName: process.env.DB_NAME || 'sms'
