@@ -1,48 +1,17 @@
 #!/bin/bash
 
-# ====================================================================
-# https://github.com/nsb1026/asset.git 최신 소스 자동 빌드 & 배포 스크립트
-# ====================================================================
-# - 현 폴더에 .git이 없더라도 자동으로 git init 및 remote 연결 후 수신
-# - Docker Compose 무중단 자동 재빌드 및 웹 서비스 구동
-# - 불필요한 구버전 이미지 자동 정돈
-
+# 에러 발생 시 즉각 중단
 set -e
 
-REPO_URL="https://github.com/nsb1026/asset.git"
-
-# 도커 설정 권한 오류 자동 복구
-sudo chown -R $USER:$USER ~/.docker 2>/dev/null || true
-
-echo "=================================================================="
-echo "🚀 [1/3] https://github.com/nsb1026/asset.git 최신 소스 수신 중..."
-echo "=================================================================="
-
-# .git 폴더가 없는 경우 즉시 git init 및 remote 동기화
-if [ ! -d ".git" ]; then
-    echo "💡 Git 저장소가 설정되어 있지 않습니다. 자동 초기화 중..."
-    git init
-    git remote add origin $REPO_URL || git remote set-url origin $REPO_URL
-fi
-
-# 원격 저장소 최신 커밋 수신 및 동기화
-echo "💡 GitHub 최신 소스로 강력 동기화(Reset) 중..."
-git fetch origin main
+echo "=== 1. Git 최신 코드 동기화 ==="
+git fetch --all
 git reset --hard origin/main
 
-echo ""
-echo "=================================================================="
-echo "🐳 [2/3] 도커 이미지 재빌드 및 무중단 웹 서비스 갱신 중..."
-echo "=================================================================="
-docker compose up -d --build
+echo "=== 2. Docker 빌드 및 컨테이너 재시작 ==="
+docker compose up -d --build --remove-orphans
 
-echo ""
-echo "=================================================================="
-echo "🧹 [3/3] 미사용 구버전 도커 이미지 자동 정리 중..."
-echo "=================================================================="
+echo "=== 3. 미사용 찌꺼기 이미지 정리 (선택) ==="
 docker image prune -f
 
-echo ""
-echo "=================================================================="
-echo "✅ 자산 관리 시스템(https://github.com/nsb1026/asset.git) 배포 성공!"
-echo "=================================================================="
+echo "=== 배포 완료 ==="
+docker compose ps
