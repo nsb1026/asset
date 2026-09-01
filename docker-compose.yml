@@ -11,7 +11,7 @@ services:
     network_mode: "host" # 호스트 리눅스의 네트워크(localhost:3306 MariaDB)를 직접 공유
     environment:
       DB_HOST: '172.17.0.1'
-      DB_PORT: '3306'
+      DB_PORT: '3305'
       DB_USER: 'sms'
       DB_PASSWORD: 'sms'
       DB_NAME: 'sms'
